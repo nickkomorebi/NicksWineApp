@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────
+
+enum WineType {
+  RED
+  WHITE
+  ROSE
+  SPARKLING
+  DESSERT
+  FORTIFIED
+  ORANGE
+  UNKNOWN
+}
+
+enum FieldSource {
+  IMAGE
+  INTERNET
+  USER
+  INFERRED
+  UNKNOWN
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  RETRYING
+}
+
+// ─── Person ───────────────────────────────────────────────
+
+model Person {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tripPeople TripPerson[]
+
+  @@index([name])
+}
+
+// ─── Winery ───────────────────────────────────────────────
+
+model Winery {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  region    String?
+  country   String?
+  website   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tripWineries TripWinery[]
+  wines        Wine[]
+
+  @@index([name])
+}
+
+// ─── FieldValue ───────────────────────────────────────────
+// Each extracted wine field stored with confidence + source metadata
+
+model FieldValue {
+  id         String      @id @default(cuid())
+  value      String
+  confidence Float       @default(0)
+  source     FieldSource @default(UNKNOWN)
+  rawText    String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  wineByBrand       Wine? @relation("WineBrand")
+  wineByName        Wine? @relation("WineName")
+  wineByVintage     Wine? @relation("WineVintage")
+  wineByCountry     Wine? @relation("WineCountry")
+  wineByRegion      Wine? @relation("WineRegion")
+  wineByAppellation Wine? @relation("WineAppellation")
+}
+
+// ─── Wine ─────────────────────────────────────────────────
+
+model Wine {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brand         FieldValue? @relation("WineBrand", fields: [brandId], references: [id])
+  brandId       String?     @unique
+  name          FieldValue? @relation("WineName", fields: [nameId], references: [id])
+  nameId        String?     @unique
+  vintage       FieldValue? @relation("WineVintage", fields: [vintageId], references: [id])
+  vintageId     String?     @unique
+  country       FieldValue? @relation("WineCountry", fields: [countryId], references: [id])
+  countryId     String?     @unique
+  region        FieldValue? @relation("WineRegion", fields: [regionId], references: [id])
+  regionId      String?     @unique
+  appellation   FieldValue? @relation("WineAppellation", fields: [appellationId], references: [id])
+  appellationId String?     @unique
+
+  type           WineType    @default(UNKNOWN)
+  typeSource     FieldSource @default(UNKNOWN)
+  typeConfidence Float       @default(0)
+
+  isNonVintage Boolean @default(false)
+
+  winery   Winery? @relation(fields: [wineryId], references: [id])
+  wineryId String?
+
+  varietals       WineVarietal[]
+  photos          WinePhoto[]
+  tastingEntries  TastingEntry[]
+  expectedProfile WineExpectedProfile?
+
+  // Merge tracking
+  mergedIntoId String?
+  mergedInto   Wine?   @relation("WineMerge", fields: [mergedIntoId], references: [id])
+  mergedFrom   Wine[]  @relation("WineMerge")
+
+  @@index([wineryId])
+  @@index([type])
+  @@index([mergedIntoId])
+}
+
+// ─── WineVarietal ─────────────────────────────────────────
+
+model WineVarietal {
+  id         String      @id @default(cuid())
+  wine       Wine        @relation(fields: [wineId], references: [id], onDelete: Cascade)
+  wineId     String
+  name       String
+  percentage Float?
+  confidence Float       @default(0)
+  source     FieldSource @default(UNKNOWN)
+
+  @@index([wineId])
+  @@index([name])
+}
+
+// ─── WinePhoto ────────────────────────────────────────────
+
+model WinePhoto {
+  id            String   @id @default(cuid())
+  wine          Wine     @relation(fields: [wineId], references: [id], onDelete: Cascade)
+  wineId        String
+  storageKey    String
+  url           String
+  isCover       Boolean  @default(false)
+  uploadBatchId String?
+  createdAt     DateTime @default(now())
+
+  @@index([wineId])
+  @@index([uploadBatchId])
+}
+
+// ─── WineExpectedProfile ──────────────────────────────────
+
+model WineExpectedProfile {
+  id     String @id @default(cuid())
+  wine   Wine   @relation(fields: [wineId], references: [id], onDelete: Cascade)
+  wineId String @unique
+
+  aroma     String?
+  palate    String?
+  finish    String?
+  acidity   String?
+  tannin    String?
+  alcohol   String?
+  sweetness String?
+  body      String?
+  notes     String?
+
+  source      String   @default("perplexity")
+  fetchedAt   DateTime @default(now())
+  rawResponse Json?
+
+  @@index([wineId])
+}
+
+// ─── TastingEntry ─────────────────────────────────────────
+
+model TastingEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wine   Wine   @relation(fields: [wineId], references: [id])
+  wineId String
+
+  trip   Trip?   @relation(fields: [tripId], references: [id])
+  tripId String?
+
+  dateDrank DateTime @default(now())
+  score     Int?
+
+  tastedBy String?
+
+  audioStorageKey  String?
+  audioTranscript  String?
+  audioProcessedAt DateTime?
+
+  aroma      String?
+  fruit      String?
+  palate     String?
+  finish     String?
+  acidity    String?
+  tannin     String?
+  alcohol    String?
+  sweetness  String?
+  body       String?
+  otherNotes String?
+
+  @@index([wineId])
+  @@index([tripId])
+  @@index([dateDrank])
+}
+
+// ─── Trip / Event ─────────────────────────────────────────
+
+model Trip {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name            String
+  date            DateTime
+  location        String
+  photoUrl        String?
+  photoStorageKey String?
+
+  people         TripPerson[]
+  wineries       TripWinery[]
+  tastingEntries TastingEntry[]
+
+  @@index([date])
+  @@index([location])
+}
+
+model TripPerson {
+  trip     Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId   String
+  person   Person @relation(fields: [personId], references: [id])
+  personId String
+
+  @@id([tripId, personId])
+}
+
+model TripWinery {
+  trip     Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId   String
+  winery   Winery @relation(fields: [wineryId], references: [id])
+  wineryId String
+  order    Int    @default(0)
+
+  @@id([tripId, wineryId])
+}
+
+// ─── Upload Batch ─────────────────────────────────────────
+
+model UploadBatch {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  status      JobStatus @default(PENDING)
+  totalPhotos Int
+  tripId      String?
+
+  items UploadBatchItem[]
+}
+
+model UploadBatchItem {
+  id      String      @id @default(cuid())
+  batch   UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchId String
+
+  storageKey String
+  url        String
+  status     JobStatus @default(PENDING)
+  error      String?
+  retryCount Int       @default(0)
+
+  extractedFields Json?
+  groupingHint    String?
+
+  wineId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([batchId])
+}
+
+// ─── Job Log ──────────────────────────────────────────────
+
+model JobLog {
+  id          String    @id @default(cuid())
+  jobType     String
+  entityId    String
+  entityType  String
+  status      JobStatus @default(PENDING)
+  attempt     Int       @default(1)
+  payload     Json?
+  result      Json?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([entityId, entityType])
+  @@index([status])
+}

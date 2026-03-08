@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nicks-wine-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nickswinapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: nicks-wine-app
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      # Override DB URL to use the Docker service name instead of localhost
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/nickswinapp?schema=public"
+      # Tell Inngest SDK we're running in local dev mode (bypasses signing key validation)
+      INNGEST_DEV: "1"
+      INNGEST_BASE_URL: "http://inngest:8288"
+    volumes:
+      # Mount source for hot-reload
+      - .:/app
+      # Keep node_modules from being overwritten by the host mount
+      - /app/node_modules
+      # Keep .next build cache inside the container
+      - next_cache:/app/.next
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  inngest:
+    image: inngest/inngest:latest
+    container_name: nicks-wine-inngest
+    ports:
+      - "8288:8288"
+    command:
+      - inngest
+      - dev
+      - --sdk-url
+      - http://app:3000/api/inngest
+      - --no-discovery
+    depends_on:
+      - app
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: nicks-wine-tunnel
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      # Local config with ingress rules
+      - ./cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      # Host credentials (cert.pem + tunnel UUID .json) — written by `cloudflared tunnel login/create`
+      - ~/.cloudflared:/home/nonroot/.cloudflared:ro
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:
+  next_cache:
