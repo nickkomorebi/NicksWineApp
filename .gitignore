@@ -43,3 +43,13 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# Claude Code local settings
+.claude/
+
+# Cloudflare Tunnel (personal config)
+cloudflared/
+
+# Artifact directories
+dirs created/
+echo/
