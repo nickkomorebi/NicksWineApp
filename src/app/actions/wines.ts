@@ -142,7 +142,7 @@ export async function updateWine(id: string, data: Partial<WineFormValues>) {
 }
 
 export async function deleteWine(id: string) {
-  await prisma.wine.delete({ where: { id } });
+  await prisma.wine.update({ where: { id }, data: { deletedAt: new Date() } });
   revalidatePath("/wines");
   return { data: { id } };
 }

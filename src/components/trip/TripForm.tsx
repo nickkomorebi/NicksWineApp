@@ -23,8 +23,12 @@ export function TripForm({ defaultValues, onSubmit, submitLabel = "Save Trip" }:
       ? new Date(defaultValues.date).toISOString().split("T")[0]
       : new Date().toISOString().split("T")[0]
   );
-  const [wineryInputs, setWineryInputs] = useState<string[]>([""]);
-  const [personInputs, setPersonInputs] = useState<string[]>([""]);
+  const [wineryInputs, setWineryInputs] = useState<string[]>(
+    defaultValues?.newWineryNames?.length ? defaultValues.newWineryNames : [""]
+  );
+  const [personInputs, setPersonInputs] = useState<string[]>(
+    defaultValues?.newPersonNames?.length ? defaultValues.newPersonNames : [""]
+  );
 
   // Photo state
   const [photoUrl, setPhotoUrl] = useState<string | undefined>(defaultValues?.photoUrl);

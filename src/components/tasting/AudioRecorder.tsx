@@ -40,6 +40,7 @@ export function AudioRecorder({ tastingId, hasExistingAudio = false }: AudioReco
   const [transcript, setTranscript] = useState("");
   const [interimText, setInterimText] = useState("");
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const isRecordingRef = useRef(false);
 
   // Check browser support on mount
   useEffect(() => {
@@ -96,13 +97,14 @@ export function AudioRecorder({ tastingId, hasExistingAudio = false }: AudioReco
     recognition.onend = () => {
       setInterimText("");
       // If we're still supposed to be recording, restart (Chrome stops after ~60s silence)
-      if (recognitionRef.current === recognition && state === "recording") {
+      if (recognitionRef.current === recognition && isRecordingRef.current) {
         try { recognition.start(); } catch { /* already stopped */ }
       }
     };
 
     setTranscript("");
     setInterimText("");
+    isRecordingRef.current = true;
     setState("recording");
     recognition.start();
   }, [state]);
@@ -110,10 +112,11 @@ export function AudioRecorder({ tastingId, hasExistingAudio = false }: AudioReco
   const stopRecording = useCallback(async () => {
     const recognition = recognitionRef.current;
     recognitionRef.current = null;
+    isRecordingRef.current = false;
     if (recognition) recognition.stop();
 
     setState("uploading");
-    const finalText = transcript.trim();
+    const finalText = (transcript + " " + interimText).trim();
 
     if (!finalText) {
       toast.error("No speech detected — try again");

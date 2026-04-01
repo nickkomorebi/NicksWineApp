@@ -1,13 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { TripCard } from "@/components/trip/TripCard";
+import { DeleteCardOverlay } from "@/components/ui/DeleteCardOverlay";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { MapPin, Plus } from "lucide-react";
 import Link from "next/link";
+import { deleteTrip } from "@/app/actions/trips";
 
 export default async function TripsPage() {
   const trips = await prisma.trip.findMany({
+    where: { deletedAt: null },
     include: {
       people: { include: { person: true } },
       wineries: { include: { winery: true }, orderBy: { order: "asc" } },
@@ -53,7 +56,13 @@ export default async function TripsPage() {
             </div>
           </Link>
           {trips.map((trip) => (
-            <TripCard key={trip.id} trip={trip as any} />
+            <DeleteCardOverlay
+              key={trip.id}
+              label="this trip"
+              onDelete={deleteTrip.bind(null, trip.id)}
+            >
+              <TripCard trip={trip as any} />
+            </DeleteCardOverlay>
           ))}
         </div>
       )}

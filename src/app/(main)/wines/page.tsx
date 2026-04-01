@@ -1,14 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { WineCard } from "@/components/wine/WineCard";
+import { AddWineCard } from "@/components/wine/AddWineCard";
+import { DeleteCardOverlay } from "@/components/ui/DeleteCardOverlay";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { Wine, Upload } from "lucide-react";
 import Link from "next/link";
+import { deleteWine } from "@/app/actions/wines";
 
 export default async function WinesPage() {
   const wines = await prisma.wine.findMany({
-    where: { mergedIntoId: null },
+    where: { mergedIntoId: null, deletedAt: null },
     include: {
       brand: true,
       name: true,
@@ -58,18 +61,15 @@ export default async function WinesPage() {
         />
       ) : (
         <div className="p-4 grid grid-cols-2 gap-3">
-          <Link href="/wines/new" className="block">
-            <div className="border border-border rounded-xl overflow-hidden bg-card hover:shadow-md transition-shadow">
-              <div className="aspect-[4/3] bg-muted flex items-center justify-center">
-                <Wine className="w-10 h-10 text-muted-foreground/30" />
-              </div>
-              <div className="p-3 flex items-center justify-center border-t border-dashed border-border">
-                <span className="text-sm font-medium text-muted-foreground">+ Add Wine</span>
-              </div>
-            </div>
-          </Link>
+          <AddWineCard />
           {wines.map((wine) => (
-            <WineCard key={wine.id} wine={wine} />
+            <DeleteCardOverlay
+              key={wine.id}
+              label="this wine"
+              onDelete={deleteWine.bind(null, wine.id)}
+            >
+              <WineCard wine={wine} />
+            </DeleteCardOverlay>
           ))}
         </div>
       )}

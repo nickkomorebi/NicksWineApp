@@ -125,6 +125,8 @@ model Wine {
   mergedInto   Wine?   @relation("WineMerge", fields: [mergedIntoId], references: [id])
   mergedFrom   Wine[]  @relation("WineMerge")
 
+  deletedAt DateTime?
+
   @@index([wineryId])
   @@index([type])
   @@index([mergedIntoId])
@@ -239,6 +241,8 @@ model Trip {
   people         TripPerson[]
   wineries       TripWinery[]
   tastingEntries TastingEntry[]
+
+  deletedAt DateTime?
 
   @@index([date])
   @@index([location])

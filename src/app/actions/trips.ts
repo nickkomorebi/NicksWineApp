@@ -59,6 +59,30 @@ export async function updateTrip(id: string, data: Partial<TripValues>) {
   const trip = await prisma.trip.findUnique({ where: { id } });
   if (!trip) return { error: "Trip not found" };
 
+  // Upsert wineries from name list
+  const newWineryNames = data.newWineryNames?.filter((w) => w.trim()) ?? [];
+  const upsertedWineryIds: string[] = [];
+  for (const wineryName of newWineryNames) {
+    const winery = await prisma.winery.upsert({
+      where: { name: wineryName },
+      create: { name: wineryName },
+      update: {},
+    });
+    upsertedWineryIds.push(winery.id);
+  }
+
+  // Upsert people from name list
+  const newPersonNames = data.newPersonNames?.filter((p) => p.trim()) ?? [];
+  const upsertedPersonIds: string[] = [];
+  for (const personName of newPersonNames) {
+    const person = await prisma.person.upsert({
+      where: { name: personName },
+      create: { name: personName },
+      update: {},
+    });
+    upsertedPersonIds.push(person.id);
+  }
+
   await prisma.trip.update({
     where: { id },
     data: {
@@ -67,6 +91,14 @@ export async function updateTrip(id: string, data: Partial<TripValues>) {
       ...(data.location && { location: data.location }),
       ...(data.photoUrl !== undefined && { photoUrl: data.photoUrl }),
       ...(data.photoStorageKey !== undefined && { photoStorageKey: data.photoStorageKey }),
+      wineries: {
+        deleteMany: {},
+        create: upsertedWineryIds.map((wineryId, i) => ({ wineryId, order: i })),
+      },
+      people: {
+        deleteMany: {},
+        create: upsertedPersonIds.map((personId) => ({ personId })),
+      },
     },
   });
 
@@ -76,7 +108,7 @@ export async function updateTrip(id: string, data: Partial<TripValues>) {
 }
 
 export async function deleteTrip(id: string) {
-  await prisma.trip.delete({ where: { id } });
+  await prisma.trip.update({ where: { id }, data: { deletedAt: new Date() } });
   revalidatePath("/trips");
   return { data: { id } };
 }

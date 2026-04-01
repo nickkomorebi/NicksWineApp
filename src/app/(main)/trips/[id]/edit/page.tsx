@@ -10,7 +10,13 @@ interface Props {
 export default async function EditTripPage({ params }: Props) {
   const { id } = await params;
 
-  const trip = await prisma.trip.findUnique({ where: { id } });
+  const trip = await prisma.trip.findUnique({
+    where: { id },
+    include: {
+      wineries: { include: { winery: true }, orderBy: { order: "asc" } },
+      people: { include: { person: true } },
+    },
+  });
   if (!trip) notFound();
 
   return (
@@ -26,8 +32,8 @@ export default async function EditTripPage({ params }: Props) {
           photoStorageKey: trip.photoStorageKey ?? undefined,
           wineryIds: [],
           personIds: [],
-          newWineryNames: [],
-          newPersonNames: [],
+          newWineryNames: trip.wineries.map((tw) => tw.winery.name),
+          newPersonNames: trip.people.map((tp) => tp.person.name),
         }}
       />
     </div>
